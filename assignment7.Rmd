@@ -1,0 +1,188 @@
+---
+title: "assignment7"
+author: "KUN LIU"
+date: "2020/10/22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 5.3.1
+
+## (a)
+Since 
+
+$\int_{0}^{\infty} (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx=\int_{0}^{\infty}2x^{\theta-1}e^{-x}+\int_{0}^{\infty}x^{\theta-1/2}e^{-x}dx=2\Gamma(\theta)+\Gamma(\theta+1/2),$
+
+C = $\frac{1}{2\Gamma(\theta)+\Gamma(\theta+1/2)}$.
+
+Suppose $y \sim Gamma(\theta,1), z \sim Gamma(\theta+1/2,1).$ Then 
+$$g(x) = \frac{ 2\Gamma(\theta)}{2\Gamma(\theta)+\Gamma(\theta+1/2)}f_{y}(y) + \frac{ \Gamma(\theta+1/2)}{2\Gamma(\theta)+\Gamma(\theta+1/2)}f_{z}(z),$$
+where $f_{y}(y),f_{z}(z)$ are the density functions of y,z correspondingly.
+
+Therefore g is a mixture of Gamma distributions. the component distributions are $Gamma(\theta,1),Gamma(\theta+1/2,1)$, and their weights are $\frac{2\Gamma(\theta)}{2\Gamma(\theta)+\Gamma(\theta+1/2)},\frac{ \Gamma(\theta+1/2)}{2\Gamma(\theta)+\Gamma(\theta+1/2)}$ correspondingly.
+
+## (b)
+
+Let $\theta$ = 2. Then g is a mixture of $Gamma(2,1),Gamma(5/2,1)$, and their weights are 8/(8+3$\sqrt{\pi}$), $3\sqrt{\pi}$/(8+3$\sqrt{\pi}$) correspondingly.
+```{r}
+set.seed(4)
+theta = 2
+n = 10000
+y = c()
+threshold = 8/(8+3*pi^0.5)
+for (i in 1:n) 
+{
+ u = runif(1)
+ if(u< threshold)
+ {temp = rgamma(n = 1,shape = theta,scale = 1)
+  y = c(y,temp)}
+ else
+ {temp = rgamma(n = 1,shape = theta+0.5,scale = 1) 
+ }
+ y = c(y,temp)
+}
+```
+Here if a random sample from standard uniform distribution is less than 8/(8+3$\sqrt{\pi}$), then I sample from $Gamma(2,1)$ randomly; else I sample from $Gamma(5/2,1)$ randomly.
+
+```{r}
+d = density(y,na.rm = T)
+plot(d,col = 'red',main = '',xlab='',ylab='')
+par(new=TRUE)
+C = 1/(2+pi^0.5*0.75)
+x = c()
+f = c()
+for ( i in seq(0,12,by=0.001))
+{x = c(x,i)
+ yy = (2*i+i^1.5)*exp(-i)*C
+ f = c(f,yy)
+}
+plot(x,f,type = 'l',col='blue',xlab='',ylab='',axes=FALSE)
+```
+The blue plot is the true density and the red plot is the kernel density estimation of g.
+
+## (c)
+
+Let g1(x) = $2(x^{\theta-1}+x^{\theta-1/2})e^{-x}$,f1(x) = $\sqrt{4+x}x^{\theta-1}e^{-x}.$
+
+Then g1(x)-f1(x) = $x^{\theta-1}e^{-x}(2+x^{1/2}-\sqrt{4+x}) = x^{\theta-1}e^{-x}(\sqrt{4+x+4x^{1/2}}-\sqrt{4+x})>=0.$
+
+So g1(x) can be an 'instrumental' density. Let $\theta = 2$.
+```{r}
+n = 20000
+x = c()
+threshold = 8/(8+3*pi^0.5)
+theta = 2
+for (i in 1:n)
+{u = runif(1)
+ if(u< threshold)
+ {temp = rgamma(n = 1,shape = theta,scale = 1)
+  y = c(y,temp)}
+ else
+ {temp = rgamma(n = 1,shape = theta+0.5,scale = 1) 
+ }
+U = runif(1)
+t = (4+temp)^0.5/(2+temp^0.5)
+if(U>t){next}
+else{x = c(x,temp)}
+}
+
+```
+
+```{r}
+d = density(x,na.rm = T)
+plot(d,col = 'red',main = 'estimated kernel density of f',xlab = '',ylab = '')
+```
+
+# 6.3.1
+
+Generate some data from the normal mixture example.
+```{r}
+delta = 0.7
+n = 100
+set.seed(123)
+u = rbinom(n,prob = delta,size=1)
+x = rnorm(n,ifelse(u==1,7,10),0.5)
+```
+Consider the prior for $\delta$ is Uniform(0,1).
+
+Then the posterior density of ($\mu_{1},\mu_{2},\frac{1}{\sigma_{1}^{2}},\frac{1}{\sigma_{2}^{2}},\delta$) is 
+
+$$q(\mu_{1},\mu_{2},\frac{1}{\sigma_{1}^{2}},\frac{1}{\sigma_{2}^{2}},\delta|x) \propto f(x|\mu_{1},\mu_{2},\frac{1}{\sigma_{1}^{2}},\frac{1}{\sigma_{2}^{2}},\delta)f(\mu_{1})f(\mu_{2})f(\frac{1}{\sigma_{1}^{2}})f(\frac{1}{\sigma_{2}^{2}})f(\delta)$$
+The posterior density can be easily computed.
+```{r}
+logpost = function(theta,data)
+{mu1 = theta[1]
+ mu2 = theta[2]
+ sigma1 = theta[3]
+ sigma2 = theta[4]
+ delta = theta[5]
+ x = data
+ 
+ f1 = prod(delta*dnorm(x,mu1,1/sigma1^0.5) + (1-delta)*dnorm(x,mu2,1/sigma2^0.5))
+ f2 = dnorm(mu1,0,10)
+ f3 = dnorm(mu2,0,10)
+ f4 = dgamma(sigma1,shape = 0.5,scale = 10)
+ f5 = dgamma(sigma2,shape = 0.5,scale = 10)
+ f6 = dunif(delta)
+ return(log(f1*f2*f3*f4*f5*f6))
+  
+}
+```
+ 
+Then estimate the 5 parameters.
+
+```{r}
+library('HI')
+mymcmc = function(niter,thetaInit,data,nburn=100)
+{p = length(thetaInit)
+thetaCurrent = thetaInit
+
+logFC = function(th,idx)
+ {theta = thetaCurrent
+ theta[idx] = th
+ logpost(theta,data)}
+
+out = matrix(thetaInit,niter,p,byrow = TRUE)
+for(i in 2:niter)
+ {for(j in 1:p)
+ {if(j < p){out[i,j] = thetaCurrent[j] = arms(thetaCurrent[j],logFC,function(x,idx)((x>0)*(x<10)),1,idx=j)}
+   else{out[i,j] = thetaCurrent[j] = arms(thetaCurrent[j],logFC,function(x,idx)((x>0)*(x<1)),1,idx=j)}
+  
+}
+  
+}
+out[-(1:nburn),]
+}
+```
+
+```{r}
+niter = 600
+thetaInit = c(6,8,3,3,0.5)
+sim = mymcmc(niter,thetaInit,x)
+```
+
+Plot the histogram for $\mu_{1}$.
+```{r}
+hist(sim[,1],xlab = 'mu1',main = 'histogram of mu1')
+```
+Plot the histogram for $\mu_{2}$.
+```{r}
+hist(sim[,2],xlab = 'mu2',main = 'histogram of mu2')
+```
+
+Plot the histogram for $\frac{1}{\sigma_{1}^{2}}$.
+```{r}
+hist(sim[,3],xlab = '1/sigma1^2',main = 'histogram of 1/sigma1^2')
+```
+
+Plot the histogram for $\frac{1}{\sigma_{2}^{2}}$.
+```{r}
+hist(sim[,4],xlab = '1/sigma2^2',main = 'histogram of 1/sigma2^2')
+```
+Plot the histogram for $\delta$.
+```{r}
+hist(sim[,5],xlab = 'delta',main = 'histogram of delta')
+```
